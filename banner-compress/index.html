@@ -1,0 +1,944 @@
+<!doctype html>
+<html lang="ja">
+  <head>
+    <meta charset="UTF-8" />
+    <meta name="viewport" content="width=device-width, initial-scale=1.0" />
+    <title>Amazon バナー圧縮ツール</title>
+    <style>
+      * {
+        box-sizing: border-box;
+        margin: 0;
+        padding: 0;
+      }
+      body {
+        font-family: -apple-system, BlinkMacSystemFont, "Hiragino Sans", "Yu Gothic UI", sans-serif;
+        background: #f5f5f5;
+        color: #222;
+        min-height: 100vh;
+        display: flex;
+        flex-direction: column;
+        align-items: center;
+        padding: 40px 20px;
+      }
+      h1 {
+        font-size: 20px;
+        font-weight: 700;
+        margin-bottom: 6px;
+      }
+      .subtitle {
+        font-size: 13px;
+        color: #666;
+        margin-bottom: 28px;
+      }
+      .card {
+        background: #fff;
+        border-radius: 12px;
+        box-shadow: 0 2px 12px rgba(0, 0, 0, 0.08);
+        padding: 28px;
+        width: 100%;
+        max-width: 680px;
+        margin-bottom: 16px;
+      }
+      .tip {
+        background: #eff6ff;
+        border: 1px solid #bfdbfe;
+        border-radius: 8px;
+        padding: 10px 14px;
+        font-size: 12px;
+        color: #1d4ed8;
+        margin-bottom: 16px;
+      }
+      .drop-zone {
+        border: 2px dashed #ccc;
+        border-radius: 10px;
+        padding: 44px 24px;
+        text-align: center;
+        cursor: pointer;
+        transition: all 0.2s;
+        background: #fafafa;
+      }
+      .drop-zone:hover,
+      .drop-zone.dragover {
+        border-color: #0070f3;
+        background: #f0f7ff;
+      }
+      .drop-zone.dragover {
+        border-style: solid;
+      }
+      .drop-zone .icon {
+        font-size: 36px;
+        margin-bottom: 10px;
+      }
+      .drop-zone .label {
+        font-size: 15px;
+        font-weight: 600;
+        color: #333;
+        margin-bottom: 4px;
+      }
+      .drop-zone .hint {
+        font-size: 12px;
+        color: #888;
+      }
+      .last-folder-btn {
+        margin-top: 10px;
+        width: 100%;
+        padding: 10px 16px;
+        background: #f8fafc;
+        border: 1.5px solid #cbd5e1;
+        border-radius: 8px;
+        cursor: pointer;
+        font-size: 13px;
+        color: #475569;
+        text-align: left;
+        transition: all 0.2s;
+        display: none;
+      }
+      .last-folder-btn:hover {
+        background: #f1f5f9;
+        border-color: #94a3b8;
+      }
+      .last-folder-btn .lf-icon {
+        margin-right: 6px;
+      }
+      .option-row {
+        display: flex;
+        align-items: center;
+        gap: 8px;
+        font-size: 12px;
+        color: #555;
+        margin-top: 14px;
+      }
+      .option-row input {
+        width: 14px;
+        height: 14px;
+        cursor: pointer;
+      }
+      .option-row label {
+        cursor: pointer;
+      }
+      button.primary {
+        background: #0070f3;
+        color: #fff;
+        border: none;
+        border-radius: 8px;
+        padding: 12px 28px;
+        font-size: 15px;
+        font-weight: 600;
+        cursor: pointer;
+        width: 100%;
+        margin-top: 14px;
+        transition: background 0.2s;
+      }
+      button.primary:hover {
+        background: #005bb5;
+      }
+      button.primary:disabled {
+        background: #aaa;
+        cursor: not-allowed;
+      }
+      h3 {
+        font-size: 13px;
+        font-weight: 600;
+        margin-bottom: 8px;
+        color: #444;
+      }
+      .specs table {
+        width: 100%;
+        border-collapse: collapse;
+        font-size: 12px;
+        color: #666;
+      }
+      .specs td {
+        padding: 4px 8px;
+        border-bottom: 1px solid #eee;
+      }
+      .specs td:last-child {
+        text-align: right;
+        color: #444;
+      }
+      .specs .group-label {
+        font-size: 11px;
+        font-weight: 700;
+        color: #999;
+        text-transform: uppercase;
+        letter-spacing: 0.05em;
+        padding: 8px 8px 2px;
+      }
+      .progress-wrap {
+        margin-bottom: 12px;
+        display: none;
+      }
+      .progress-bar {
+        background: #2a2a2a;
+        border-radius: 6px;
+        height: 8px;
+        overflow: hidden;
+      }
+      .progress-fill {
+        background: #0070f3;
+        height: 100%;
+        width: 0%;
+        transition: width 0.15s ease-out;
+      }
+      .progress-text {
+        font-size: 11px;
+        color: #888;
+        margin-top: 5px;
+        text-align: right;
+      }
+      #log {
+        font-size: 12px;
+        font-family: "SF Mono", "Menlo", monospace;
+        background: #111;
+        color: #eee;
+        border-radius: 8px;
+        padding: 16px;
+        max-height: 360px;
+        overflow-y: auto;
+        line-height: 1.75;
+        display: none;
+      }
+      .log-ok {
+        color: #6ee7b7;
+      }
+      .log-skip {
+        color: #a3e635;
+      }
+      .log-warn {
+        color: #fde68a;
+      }
+      .log-ng {
+        color: #fca5a5;
+      }
+      .log-info {
+        color: #93c5fd;
+      }
+      .log-dim {
+        color: #64748b;
+      }
+      .log-folder {
+        color: #fde68a;
+        font-weight: bold;
+      }
+      .summary {
+        display: none;
+        margin-top: 14px;
+        padding: 14px;
+        border-radius: 8px;
+        font-size: 14px;
+        font-weight: 600;
+        text-align: center;
+      }
+      .summary.ok {
+        background: #d1fae5;
+        color: #065f46;
+      }
+      .summary.ng {
+        background: #fee2e2;
+        color: #991b1b;
+      }
+      .summary.warn {
+        background: #fef9c3;
+        color: #713f12;
+      }
+      .browser-warn {
+        background: #fff7ed;
+        border: 1px solid #fed7aa;
+        border-radius: 8px;
+        padding: 12px 16px;
+        font-size: 12px;
+        color: #c2410c;
+        margin-bottom: 16px;
+        max-width: 680px;
+        width: 100%;
+        display: none;
+      }
+    </style>
+  </head>
+  <body>
+    <h1>🗜️ Amazon バナー圧縮ツール</h1>
+    <p class="subtitle">フォルダを選ぶだけで一括圧縮 → 「圧縮」フォルダに保存</p>
+
+    <div class="browser-warn" id="browserWarn">
+      ⚠️ このツールは <strong>Chrome / Edge</strong> で動作します。Safari・Firefox では使えません。
+    </div>
+
+    <div class="card">
+      <div class="tip">
+        💡
+        ファイル名は問いません。画像の<strong>ピクセルサイズで自動判別</strong>します。main／backup
+        など複数サブフォルダがある場合は<strong>親フォルダ</strong>を選択してください。
+      </div>
+
+      <div class="drop-zone" id="dropZone">
+        <div class="icon">📁</div>
+        <div class="label">フォルダを選択 / ドラッグ&ドロップ</div>
+        <div class="hint">
+          クリックしてフォルダ選択ダイアログを開く、またはフォルダをここにドロップ
+        </div>
+      </div>
+
+      <!-- 前回のフォルダボタン（IndexedDBに保存済みの場合のみ表示） -->
+      <button class="last-folder-btn" id="lastFolderBtn">
+        <span class="lf-icon">🕐</span>前回: <span id="lastFolderName">—</span>
+      </button>
+
+      <div class="option-row">
+        <input type="checkbox" id="autoResizeChk" checked />
+        <label for="autoResizeChk"
+          >quality=1でも容量を超える場合、寸法を保ったまま画質を落として自動で収める</label
+        >
+      </div>
+
+      <button class="primary" id="startBtn" disabled>圧縮を開始</button>
+    </div>
+
+    <div class="card">
+      <h3>対応サイズと容量上限（ピクセルサイズで自動判別）</h3>
+      <div class="specs">
+        <table>
+          <tr>
+            <td class="group-label" colspan="2">モバイル（2倍解像度）</td>
+          </tr>
+          <tr>
+            <td>828×250（414×125の2x）</td>
+            <td>95 KB</td>
+          </tr>
+          <tr>
+            <td>600×500（300×250の2x）</td>
+            <td>36 KB</td>
+          </tr>
+          <tr>
+            <td>640×100（320×50の2x）</td>
+            <td>16 KB</td>
+          </tr>
+          <tr>
+            <td>1456×180（728×90の2x）</td>
+            <td>36 KB</td>
+          </tr>
+          <tr>
+            <td>1940×500（970×250の2x）</td>
+            <td>196 KB</td>
+          </tr>
+          <tr>
+            <td>980×55</td>
+            <td>36 KB</td>
+          </tr>
+          <tr>
+            <td>690×920</td>
+            <td>196 KB</td>
+          </tr>
+          <tr>
+            <td class="group-label" colspan="2">デスクトップ</td>
+          </tr>
+          <tr>
+            <td>160×600</td>
+            <td>46 KB</td>
+          </tr>
+          <tr>
+            <td>300×600</td>
+            <td>46 KB</td>
+          </tr>
+          <tr>
+            <td>300×250</td>
+            <td>36 KB</td>
+          </tr>
+          <tr>
+            <td>728×90</td>
+            <td>46 KB</td>
+          </tr>
+          <tr>
+            <td>970×250</td>
+            <td>196 KB</td>
+          </tr>
+          <tr>
+            <td>2560×2560</td>
+            <td>1970 KB</td>
+          </tr>
+        </table>
+      </div>
+    </div>
+
+    <div class="card" id="logCard" style="display: none">
+      <h3>処理ログ</h3>
+      <div class="progress-wrap" id="progressWrap">
+        <div class="progress-bar"><div class="progress-fill" id="progressFill"></div></div>
+        <div class="progress-text" id="progressText">0 / 0</div>
+      </div>
+      <div id="log"></div>
+      <div class="summary" id="summary"></div>
+    </div>
+
+    <script>
+      // ============================================================
+      // 設定：ピクセルサイズ "WxH" → 上限バイト（1KB = 1000 bytes）
+      // ============================================================
+      const TARGETS = {
+        // モバイル（2倍解像度）
+        "828x250": 95 * 1000,
+        "600x500": 36 * 1000,
+        "640x100": 16 * 1000,
+        "1456x180": 36 * 1000,
+        "1940x500": 196 * 1000,
+        "980x55": 36 * 1000,
+        "690x920": 196 * 1000,
+        // デスクトップ
+        "160x600": 46 * 1000,
+        "300x600": 46 * 1000,
+        "300x250": 36 * 1000,
+        "728x90": 46 * 1000,
+        "970x250": 196 * 1000,
+        "2560x2560": 1970 * 1000,
+      }
+
+      const IGNORE_DIRS = new Set(["圧縮", ".DS_Store", "__MACOSX", "node_modules"])
+      const BORDER_THRESHOLD = 0.88
+      const BORDER_STRIP = 2
+      const AUTO_RESIZE_MIN_SCALE = 0.5 // これ以上は縮小しない（画質劣化の下限）
+      const AUTO_RESIZE_STEP = 0.1
+
+      // ============================================================
+      // ブラウザチェック
+      // ============================================================
+      if (!window.showDirectoryPicker) {
+        document.getElementById("browserWarn").style.display = "block"
+      }
+
+      // ============================================================
+      // IndexedDB（前回フォルダの保存）
+      // ============================================================
+      const IDB_NAME = "banner-compress-v1"
+      const IDB_STORE = "handles"
+      const IDB_KEY = "lastDir"
+
+      function openIDB() {
+        return new Promise((res, rej) => {
+          const req = indexedDB.open(IDB_NAME, 1)
+          req.onupgradeneeded = (e) => e.target.result.createObjectStore(IDB_STORE)
+          req.onsuccess = (e) => res(e.target.result)
+          req.onerror = (e) => rej(e.target.error)
+        })
+      }
+      async function saveHandle(handle) {
+        const db = await openIDB()
+        return new Promise((res, rej) => {
+          const tx = db.transaction(IDB_STORE, "readwrite")
+          tx.objectStore(IDB_STORE).put(handle, IDB_KEY)
+          tx.oncomplete = res
+          tx.onerror = (e) => rej(e.target.error)
+        })
+      }
+      async function loadHandle() {
+        try {
+          const db = await openIDB()
+          return new Promise((res, rej) => {
+            const tx = db.transaction(IDB_STORE, "readonly")
+            const req = tx.objectStore(IDB_STORE).get(IDB_KEY)
+            req.onsuccess = (e) => res(e.target.result || null)
+            req.onerror = (e) => rej(e.target.error)
+          })
+        } catch {
+          return null
+        }
+      }
+
+      // ============================================================
+      // UI
+      // ============================================================
+      let rootDirHandle = null
+      const dropZone = document.getElementById("dropZone")
+      const startBtn = document.getElementById("startBtn")
+      const lastFolderBtn = document.getElementById("lastFolderBtn")
+      const lastFolderNameEl = document.getElementById("lastFolderName")
+      const autoResizeChk = document.getElementById("autoResizeChk")
+      const logEl = document.getElementById("log")
+      const logCard = document.getElementById("logCard")
+      const summary = document.getElementById("summary")
+      const progressWrap = document.getElementById("progressWrap")
+      const progressFill = document.getElementById("progressFill")
+      const progressText = document.getElementById("progressText")
+
+      // 起動時に前回フォルダを確認
+      ;(async () => {
+        const saved = await loadHandle()
+        if (saved) {
+          lastFolderNameEl.textContent = saved.name
+          lastFolderBtn.style.display = "block"
+          lastFolderBtn._handle = saved
+        }
+      })()
+
+      dropZone.addEventListener("click", selectFolder)
+
+      // ドラッグ&ドロップ対応
+      dropZone.addEventListener("dragover", (e) => {
+        e.preventDefault()
+        dropZone.classList.add("dragover")
+      })
+      dropZone.addEventListener("dragleave", () => {
+        dropZone.classList.remove("dragover")
+      })
+      dropZone.addEventListener("drop", async (e) => {
+        e.preventDefault()
+        dropZone.classList.remove("dragover")
+
+        const item = e.dataTransfer && e.dataTransfer.items && e.dataTransfer.items[0]
+        if (!item || item.kind !== "file" || !item.getAsFileSystemHandle) {
+          alert(
+            "お使いのブラウザはドラッグ&ドロップに対応していません。「フォルダを選択」をクリックしてください。",
+          )
+          return
+        }
+        try {
+          const handle = await item.getAsFileSystemHandle()
+          if (handle.kind !== "directory") {
+            alert("フォルダをドロップしてください（ファイル単体は非対応です）。")
+            return
+          }
+          const perm = await handle.requestPermission({ mode: "readwrite" })
+          if (perm !== "granted") {
+            alert("フォルダへのアクセスが許可されませんでした。")
+            return
+          }
+          await saveHandle(handle)
+          lastFolderNameEl.textContent = handle.name
+          lastFolderBtn._handle = handle
+          lastFolderBtn.style.display = "block"
+          setActiveHandle(handle)
+        } catch (err) {
+          alert("フォルダの読み込みに失敗しました: " + err.message)
+        }
+      })
+      // ページ全体でのドロップによる誤ナビゲーションを防ぐ
+      window.addEventListener("dragover", (e) => e.preventDefault())
+      window.addEventListener("drop", (e) => {
+        if (e.target !== dropZone) e.preventDefault()
+      })
+
+      lastFolderBtn.addEventListener("click", async () => {
+        const handle = lastFolderBtn._handle
+        if (!handle) return
+        try {
+          const perm = await handle.requestPermission({ mode: "readwrite" })
+          if (perm === "granted") {
+            setActiveHandle(handle)
+          } else {
+            alert(
+              "フォルダへのアクセスが拒否されました。「フォルダを選択」からやり直してください。",
+            )
+          }
+        } catch (e) {
+          alert("フォルダへのアクセスに失敗しました: " + e.message)
+        }
+      })
+
+      startBtn.addEventListener("click", runCompression)
+
+      async function selectFolder() {
+        try {
+          const handle = await window.showDirectoryPicker({ mode: "readwrite" })
+          await saveHandle(handle)
+          lastFolderNameEl.textContent = handle.name
+          lastFolderBtn._handle = handle
+          lastFolderBtn.style.display = "block"
+          setActiveHandle(handle)
+        } catch (e) {
+          if (e.name !== "AbortError") console.error(e)
+        }
+      }
+
+      function setActiveHandle(handle) {
+        rootDirHandle = handle
+        dropZone.innerHTML = `
+    <div class="icon">✅</div>
+    <div class="label">${handle.name}</div>
+    <div class="hint">選択済み。「圧縮を開始」を押してください</div>
+  `
+        dropZone.style.borderColor = "#6ee7b7"
+        dropZone.style.background = "#f0fdf4"
+        startBtn.disabled = false
+      }
+
+      function log(html) {
+        const el = document.createElement("div")
+        el.innerHTML = html
+        logEl.appendChild(el)
+        logEl.scrollTop = logEl.scrollHeight
+      }
+
+      function updateProgress(done, total) {
+        progressWrap.style.display = "block"
+        const pct = total ? Math.round((done / total) * 100) : 0
+        progressFill.style.width = pct + "%"
+        progressText.textContent =
+          done >= total ? `${done} / ${total}枚 完了` : `${done} / ${total}枚 処理中...`
+      }
+
+      // ============================================================
+      // フォルダ検索（JPGを含むフォルダを再帰検索）
+      // ============================================================
+      async function findJpgDirs(dirHandle, path = "") {
+        const results = []
+        let hasJpg = false
+
+        for await (const [name, handle] of dirHandle.entries()) {
+          if (handle.kind === "file") {
+            const lower = name.toLowerCase()
+            if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) hasJpg = true
+          }
+        }
+        if (hasJpg) results.push({ handle: dirHandle, path: path || dirHandle.name })
+
+        for await (const [name, handle] of dirHandle.entries()) {
+          if (handle.kind !== "directory") continue
+          if (IGNORE_DIRS.has(name)) continue
+          const sub = await findJpgDirs(handle, path ? `${path}/${name}` : name)
+          results.push(...sub)
+        }
+        return results
+      }
+
+      // ============================================================
+      // 画像デコード：1ファイルにつき1回だけデコードし、
+      // 枠検出・サイズ判定・圧縮のすべてで同じcanvasを使い回す
+      // ============================================================
+      async function decodeToCanvas(file) {
+        const bitmap = await createImageBitmap(file)
+        const canvas = document.createElement("canvas")
+        canvas.width = bitmap.width
+        canvas.height = bitmap.height
+        const ctx = canvas.getContext("2d")
+        ctx.drawImage(bitmap, 0, 0)
+        bitmap.close()
+        return canvas
+      }
+
+      function resizeCanvas(srcCanvas, width, height) {
+        const c = document.createElement("canvas")
+        c.width = width
+        c.height = height
+        const ctx = c.getContext("2d")
+        ctx.imageSmoothingEnabled = true
+        ctx.imageSmoothingQuality = "high"
+        ctx.drawImage(srcCanvas, 0, 0, width, height)
+        return c
+      }
+
+      // ============================================================
+      // 外枠ライン検出（既にデコード済みのcanvasを再利用、再デコードしない）
+      // ============================================================
+      function detectBorderLine(canvas) {
+        const ctx = canvas.getContext("2d")
+        const W = canvas.width,
+          H = canvas.height
+        const S = BORDER_STRIP
+
+        function edgeRatio(imageData, total) {
+          let whites = 0,
+            blacks = 0
+          for (let i = 0; i < imageData.data.length; i += 4) {
+            const r = imageData.data[i],
+              g = imageData.data[i + 1],
+              b = imageData.data[i + 2]
+            if (r > 240 && g > 240 && b > 240) whites++
+            else if (r < 15 && g < 15 && b < 15) blacks++
+          }
+          return { white: whites / total, black: blacks / total }
+        }
+
+        const edges = {
+          上: edgeRatio(ctx.getImageData(0, 0, W, S), W * S),
+          下: edgeRatio(ctx.getImageData(0, H - S, W, S), W * S),
+          左: edgeRatio(ctx.getImageData(0, 0, S, H), S * H),
+          右: edgeRatio(ctx.getImageData(W - S, 0, S, H), S * H),
+        }
+
+        const avgWhite = Object.values(edges).reduce((a, e) => a + e.white, 0) / 4
+        const avgBlack = Object.values(edges).reduce((a, e) => a + e.black, 0) / 4
+
+        const warnings = []
+        for (const [side, { white, black }] of Object.entries(edges)) {
+          if (white > BORDER_THRESHOLD && white > avgWhite + 0.4)
+            warnings.push(`${side}辺に白いライン`)
+          if (black > BORDER_THRESHOLD && black > avgBlack + 0.4)
+            warnings.push(`${side}辺に黒いライン`)
+        }
+        return warnings
+      }
+
+      // ============================================================
+      // mozjpeg (WebAssembly) — 高画質エンコーダ
+      // ============================================================
+      let _mozjpegEncode = null
+      let _mozjpegLoadAttempted = false
+
+      async function getMozjpeg() {
+        if (_mozjpegLoadAttempted) return _mozjpegEncode
+        _mozjpegLoadAttempted = true
+        try {
+          const m = await import("https://cdn.jsdelivr.net/npm/@jsquash/jpeg@1.3.0/encode.js")
+          _mozjpegEncode = m.default
+        } catch (e) {
+          console.warn("mozjpeg load failed, fallback to canvas.toBlob:", e)
+          _mozjpegEncode = null
+        }
+        return _mozjpegEncode
+      }
+
+      // ============================================================
+      // JPEG 圧縮（バイナリサーチ）canvas を受け取る版
+      // mozjpeg が使えれば高画質、ダメなら canvas.toBlob にフォールバック
+      // ============================================================
+      async function compressToLimit(canvas, maxBytes) {
+        const ctx = canvas.getContext("2d")
+        const encode = await getMozjpeg()
+
+        if (encode) {
+          // ── mozjpeg パス（高画質）── 標準的な整数二分探索
+          const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
+          let lo = 1,
+            hi = 95,
+            bestQ = null,
+            bestBuf = null
+          while (lo <= hi) {
+            const mid = Math.floor((lo + hi) / 2)
+            const buf = await encode(imageData, { quality: mid })
+            if (buf.byteLength <= maxBytes) {
+              bestQ = mid
+              bestBuf = buf
+              lo = mid + 1
+            } else hi = mid - 1
+          }
+          if (!bestBuf) {
+            bestBuf = await encode(imageData, { quality: 1 })
+            bestQ = 1
+          }
+          return { output: bestBuf, size: bestBuf.byteLength, quality: bestQ }
+        } else {
+          // ── フォールバック: canvas.toBlob（連続値の二分探索） ──
+          let lo = 0.01,
+            hi = 0.95,
+            bestQ = null,
+            bestBlob = null
+          for (let i = 0; i < 14; i++) {
+            const mid = (lo + hi) / 2
+            const blob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", mid))
+            if (blob.size <= maxBytes) {
+              bestQ = mid
+              bestBlob = blob
+              lo = mid
+            } else hi = mid
+          }
+          if (!bestBlob) {
+            bestBlob = await new Promise((r) => canvas.toBlob(r, "image/jpeg", 0.01))
+            bestQ = 0.01
+          }
+          return { output: bestBlob, size: bestBlob.size, quality: Math.round(bestQ * 100) }
+        }
+      }
+
+      // ============================================================
+      // quality=1 でも容量を超える場合、寸法は維持したまま
+      // 一度縮小→元の寸法へ復元してディテールを落とし、再圧縮する
+      // （Amazon側の寸法要件を壊さずに容量だけを削る）
+      // ============================================================
+      async function compressWithAutoResize(canvas, maxBytes, allowResize) {
+        let result = await compressToLimit(canvas, maxBytes)
+        if (result.size <= maxBytes || !allowResize) return result
+
+        const origW = canvas.width,
+          origH = canvas.height
+        let scale = 1.0
+
+        while (result.size > maxBytes && scale > AUTO_RESIZE_MIN_SCALE) {
+          scale -= AUTO_RESIZE_STEP
+          const shrunkW = Math.max(1, Math.round(origW * scale))
+          const shrunkH = Math.max(1, Math.round(origH * scale))
+          const shrunk = resizeCanvas(canvas, shrunkW, shrunkH)
+          const restored = resizeCanvas(shrunk, origW, origH)
+          result = await compressToLimit(restored, maxBytes)
+          result.resized = true
+          result.scale = scale
+        }
+        return result
+      }
+
+      // ============================================================
+      // メイン処理
+      // ============================================================
+      async function runCompression() {
+        if (!rootDirHandle) return
+        startBtn.disabled = true
+        logCard.style.display = "block"
+        logEl.style.display = "block"
+        logEl.innerHTML = ""
+        summary.style.display = "none"
+        progressWrap.style.display = "none"
+        progressFill.style.width = "0%"
+
+        let totalOk = 0,
+          totalSkip = 0,
+          totalNg = 0,
+          totalWarn = 0,
+          totalUnknown = 0,
+          totalResized = 0
+
+        log(`<span class="log-info">📂 ${rootDirHandle.name}</span>`)
+        log(`<span class="log-info">フォルダを検索中...</span>`)
+
+        const encoder = await getMozjpeg()
+        if (encoder) {
+          log(`<span class="log-info">🔧 エンコーダ: mozjpeg (WebAssembly)</span>`)
+        } else {
+          log(
+            `<span class="log-warn">⚠️ mozjpeg (WASM) の読み込みに失敗したため、ブラウザ標準エンコーダにフォールバックします（画質がやや低下する可能性があります）</span>`,
+          )
+        }
+
+        const dirs = await findJpgDirs(rootDirHandle)
+        if (dirs.length === 0) {
+          log(
+            `<span class="log-ng">⚠️ JPGファイルが見つかりませんでした。フォルダの選択が正しいか確認してください。</span>`,
+          )
+          startBtn.disabled = false
+          return
+        }
+        log(`<span class="log-info">${dirs.length}件のフォルダを検出</span>`)
+
+        // 事前に全JPGを列挙し、進捗表示用の総数を把握しておく
+        const plan = []
+        for (const { handle: dirHandle, path } of dirs) {
+          const jpgEntries = []
+          for await (const [name, handle] of dirHandle.entries()) {
+            if (handle.kind !== "file") continue
+            const lower = name.toLowerCase()
+            if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
+              jpgEntries.push({ name, handle })
+            }
+          }
+          plan.push({ dirHandle, path, jpgEntries })
+        }
+        const totalFiles = plan.reduce((sum, p) => sum + p.jpgEntries.length, 0)
+        let processed = 0
+        updateProgress(0, totalFiles)
+
+        for (const { dirHandle, path, jpgEntries } of plan) {
+          const compressDir = await dirHandle.getDirectoryHandle("圧縮", { create: true })
+          log(`<br><span class="log-folder">📁 ${path}</span>`)
+
+          for (const { name, handle } of jpgEntries) {
+            const file = await handle.getFile()
+            const beforeKB = (file.size / 1000).toFixed(1)
+
+            // 画像を1回だけデコードし、枠検出・サイズ判定・圧縮すべてで使い回す
+            let canvas
+            try {
+              canvas = await decodeToCanvas(file)
+            } catch {
+              log(`  <span class="log-ng">❌ ${name} — 画像読み込みエラー</span>`)
+              totalNg++
+              processed++
+              updateProgress(processed, totalFiles)
+              continue
+            }
+
+            const dimKey = `${canvas.width}x${canvas.height}`
+            const maxBytes = TARGETS[dimKey]
+
+            if (!maxBytes) {
+              log(`  <span class="log-dim">-- ${name} (${dimKey}) — 対象外サイズ</span>`)
+              totalUnknown++
+              processed++
+              updateProgress(processed, totalFiles)
+              continue
+            }
+
+            const borderWarnings = detectBorderLine(canvas)
+            const outHandle = await compressDir.getFileHandle(name, { create: true })
+
+            try {
+              let afterKB,
+                qualityStr,
+                isNg,
+                resized = false,
+                resizeScale = null
+
+              if (file.size <= maxBytes) {
+                // 上限内 → コピー
+                const buf = await file.arrayBuffer()
+                const writable = await outHandle.createWritable()
+                await writable.write(buf)
+                await writable.close()
+                afterKB = beforeKB
+                qualityStr = "コピー"
+                isNg = false
+                totalSkip++
+              } else {
+                // 上限超 → 圧縮（必要ならquality=1到達後に自動リサイズも試みる）
+                const result = await compressWithAutoResize(canvas, maxBytes, autoResizeChk.checked)
+                afterKB = (result.size / 1000).toFixed(1)
+                qualityStr = `q${result.quality}`
+                isNg = result.size > maxBytes
+                resized = !!result.resized
+                resizeScale = result.scale ?? null
+                const writable = await outHandle.createWritable()
+                await writable.write(result.output)
+                await writable.close()
+                if (resized) totalResized++
+                if (!isNg) totalOk++
+                else totalNg++
+              }
+
+              const statusIcon = isNg ? "❌" : "✅"
+              const cls = isNg ? "log-ng" : "log-ok"
+              const dimLabel = `(${dimKey})`
+              log(
+                `  <span class="${cls}">${statusIcon} ${name} ${dimLabel} ${beforeKB}K → ${afterKB}K (${qualityStr})</span>`,
+              )
+
+              if (resized) {
+                log(
+                  `     <span class="log-warn">🔧 quality=1でも収まらなかったため、寸法(${dimKey})は保ったまま画質を落として再圧縮しました（内部縮小率 ${Math.round(resizeScale * 100)}%）</span>`,
+                )
+              }
+
+              for (const w of borderWarnings) {
+                totalWarn++
+                log(`     <span class="log-warn">⚠️ ${w}の可能性あり — 目視確認を推奨</span>`)
+              }
+            } catch (e) {
+              totalNg++
+              log(`  <span class="log-ng">❌ ${name} — エラー: ${e.message}</span>`)
+            }
+
+            processed++
+            updateProgress(processed, totalFiles)
+          }
+        }
+
+        log(`<br><span class="log-info">================================</span>`)
+        const warnStr = totalWarn > 0 ? `⚠️ 外枠警告: ${totalWarn}件  ` : ""
+        const resizedStr = totalResized > 0 ? `🔧 自動リサイズ: ${totalResized}枚  ` : ""
+        const ngStr = totalNg > 0 ? `❌ 超過: ${totalNg}枚` : ""
+        log(
+          `<span class="log-info">✅ 圧縮: ${totalOk}枚  ⬜ コピー(上限内): ${totalSkip}枚  ${resizedStr}${warnStr}${ngStr}</span>`,
+        )
+
+        summary.style.display = "block"
+        if (totalNg > 0) {
+          summary.className = "summary ng"
+          summary.textContent = `⚠️ ${totalOk + totalSkip}枚完了 / ${totalNg}枚は上限超過（要確認）`
+        } else if (totalWarn > 0) {
+          summary.className = "summary warn"
+          summary.textContent = `✅ ${totalOk + totalSkip}枚完了 — ⚠️ 外枠ライン要確認（${totalWarn}件）`
+        } else {
+          summary.className = "summary ok"
+          summary.textContent = `✅ ${totalOk + totalSkip}枚すべて完了！`
+        }
+
+        startBtn.disabled = false
+        startBtn.textContent = "もう一度実行"
+      }
+    </script>
+  </body>
+</html>
