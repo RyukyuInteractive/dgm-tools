@@ -266,7 +266,8 @@
     <div class="card">
       <div class="tip">
         💡
-        ファイル名は問いません。画像の<strong>ピクセルサイズで自動判別</strong>します。main／backup
+        画像の<strong>ピクセルサイズで自動判別</strong>します(ファイル名は問いません)。ただしWPロゴのみ
+        サイズが不定のため<strong>ファイル名に"logo"を含むかで判定</strong>します。main／backup
         など複数サブフォルダがある場合は<strong>親フォルダ</strong>を選択してください。
       </div>
 
@@ -294,7 +295,7 @@
     </div>
 
     <div class="card">
-      <h3>対応サイズと容量上限（ピクセルサイズで自動判別）</h3>
+      <h3>対応サイズと容量上限（WPロゴのみファイル名判別、他はピクセルサイズで自動判別）</h3>
       <div class="specs">
         <table>
           <tr>
@@ -335,6 +336,10 @@
           <tr>
             <td>1420×920（Double Wide WP）</td>
             <td>196 KB</td>
+          </tr>
+          <tr>
+            <td>WPロゴ（ファイル名に"logo"を含む、サイズ不問）</td>
+            <td>90 KB</td>
           </tr>
           <tr>
             <td class="group-label" colspan="2">デスクトップ</td>
@@ -400,6 +405,12 @@
         "970x250": 196 * 1000,
         "2560x2560": 1970 * 1000,
       }
+
+      // WPロゴ(Double Wide WP用等)はブランドによってピクセルサイズが様々なため、
+      // TARGETSのようなピクセル判定は使えない。ファイル名に"logo"を含む場合、
+      // サイズ不問で容量上限のみチェックする(ユーザー指示: 2026-09-24)。
+      const WP_LOGO_MAX_BYTES = 90 * 1000
+      const WP_LOGO_NAME_PATTERN = /logo/i
 
       const IGNORE_DIRS = new Set(["圧縮", ".DS_Store", "__MACOSX", "node_modules"])
       const BORDER_THRESHOLD = 0.88
@@ -853,7 +864,8 @@
             }
 
             const dimKey = `${canvas.width}x${canvas.height}`
-            const maxBytes = TARGETS[dimKey]
+            const isWpLogo = WP_LOGO_NAME_PATTERN.test(name)
+            const maxBytes = isWpLogo ? WP_LOGO_MAX_BYTES : TARGETS[dimKey]
 
             if (!maxBytes) {
               log(`  <span class="log-dim">-- ${name} (${dimKey}) — 対象外サイズ</span>`)
@@ -901,7 +913,7 @@
 
               const statusIcon = isNg ? "❌" : "✅"
               const cls = isNg ? "log-ng" : "log-ok"
-              const dimLabel = `(${dimKey})`
+              const dimLabel = isWpLogo ? `(${dimKey}, WPロゴ扱い)` : `(${dimKey})`
               log(
                 `  <span class="${cls}">${statusIcon} ${name} ${dimLabel} ${beforeKB}K → ${afterKB}K (${qualityStr})</span>`,
               )
