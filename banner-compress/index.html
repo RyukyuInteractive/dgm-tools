@@ -467,6 +467,9 @@
       // UI
       // ============================================================
       let rootDirHandle = null
+      // 圧縮完了後は同じ内容を再圧縮するケースが無いため、ボタンは「再実行」ではなく
+      // 「新しいフォルダを選択」に切り替える(ユーザー指示: 2026-09-24)。
+      let compressionDone = false
       const dropZone = document.getElementById("dropZone")
       const startBtn = document.getElementById("startBtn")
       const lastFolderBtn = document.getElementById("lastFolderBtn")
@@ -553,7 +556,13 @@
         }
       })
 
-      startBtn.addEventListener("click", runCompression)
+      startBtn.addEventListener("click", () => {
+        if (compressionDone) {
+          selectFolder()
+        } else {
+          runCompression()
+        }
+      })
 
       async function selectFolder() {
         try {
@@ -578,6 +587,11 @@
         dropZone.style.borderColor = "#6ee7b7"
         dropZone.style.background = "#f0fdf4"
         startBtn.disabled = false
+        // 新しいフォルダを選んだら前回の結果表示・ボタン状態をリセットする
+        compressionDone = false
+        startBtn.textContent = "圧縮を開始"
+        logCard.style.display = "none"
+        summary.style.display = "none"
       }
 
       function log(html) {
@@ -1002,7 +1016,8 @@
         }
 
         startBtn.disabled = false
-        startBtn.textContent = "もう一度実行"
+        compressionDone = true
+        startBtn.textContent = "新しいフォルダを選択"
       }
     </script>
   </body>
