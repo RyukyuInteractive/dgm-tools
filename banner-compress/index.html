@@ -598,7 +598,7 @@
       // ============================================================
       // フォルダ検索（JPGを含むフォルダを再帰検索）
       // ============================================================
-      async function findJpgDirs(dirHandle, path = "") {
+      async function findJpgDirs(dirHandle, path = "", parentHandle = null) {
         const results = []
         let hasJpg = false
 
@@ -606,14 +606,28 @@
           if (handle.kind === "file") {
             const lower = name.toLowerCase()
             if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) hasJpg = true
+            // WPロゴ(.png)もスキャン対象に含める。JPG/JPEGしか見ていなかったため、
+            // PNGロゴが圧縮フォルダに一切含まれない不具合があった(ユーザー報告: 2026-09-24)。
+            if (lower.endsWith(".png") && WP_LOGO_NAME_PATTERN.test(name)) hasJpg = true
           }
         }
-        if (hasJpg) results.push({ handle: dirHandle, path: path || dirHandle.name })
+        if (hasJpg) {
+          // WPフォルダの圧縮出力は、WPフォルダ自身の直下ではなく親フォルダの「圧縮」
+          // フォルダの中に「WP」サブフォルダとして作る(main-assets/WP/圧縮/ ではなく
+          // main-assets/圧縮/WP/ にしてほしいという指摘。ユーザー指示: 2026-09-24)。
+          const isWpDir = /^wp$/i.test(dirHandle.name) && !!parentHandle
+          results.push({
+            handle: dirHandle,
+            path: path || dirHandle.name,
+            compressParent: isWpDir ? parentHandle : null,
+            compressSubfolder: isWpDir ? "WP" : null,
+          })
+        }
 
         for await (const [name, handle] of dirHandle.entries()) {
           if (handle.kind !== "directory") continue
           if (IGNORE_DIRS.has(name)) continue
-          const sub = await findJpgDirs(handle, path ? `${path}/${name}` : name)
+          const sub = await findJpgDirs(handle, path ? `${path}/${name}` : name, dirHandle)
           results.push(...sub)
         }
         return results
@@ -826,30 +840,59 @@
         }
         log(`<span class="log-info">${dirs.length}件のフォルダを検出</span>`)
 
-        // 事前に全JPGを列挙し、進捗表示用の総数を把握しておく
+        // 事前に全JPG(+WPロゴPNG)を列挙し、進捗表示用の総数を把握しておく
         const plan = []
-        for (const { handle: dirHandle, path } of dirs) {
+        for (const { handle: dirHandle, path, compressParent, compressSubfolder } of dirs) {
           const jpgEntries = []
           for await (const [name, handle] of dirHandle.entries()) {
             if (handle.kind !== "file") continue
             const lower = name.toLowerCase()
             if (lower.endsWith(".jpg") || lower.endsWith(".jpeg")) {
-              jpgEntries.push({ name, handle })
+              jpgEntries.push({ name, handle, kind: "jpg" })
+            } else if (lower.endsWith(".png") && WP_LOGO_NAME_PATTERN.test(name)) {
+              jpgEntries.push({ name, handle, kind: "png-logo" })
             }
           }
-          plan.push({ dirHandle, path, jpgEntries })
+          plan.push({ dirHandle, path, jpgEntries, compressParent, compressSubfolder })
         }
         const totalFiles = plan.reduce((sum, p) => sum + p.jpgEntries.length, 0)
         let processed = 0
         updateProgress(0, totalFiles)
 
-        for (const { dirHandle, path, jpgEntries } of plan) {
-          const compressDir = await dirHandle.getDirectoryHandle("圧縮", { create: true })
+        for (const { dirHandle, path, jpgEntries, compressParent, compressSubfolder } of plan) {
+          const compressDir = compressParent
+            ? await (
+                await compressParent.getDirectoryHandle("圧縮", { create: true })
+              ).getDirectoryHandle(compressSubfolder, { create: true })
+            : await dirHandle.getDirectoryHandle("圧縮", { create: true })
           log(`<br><span class="log-folder">📁 ${path}</span>`)
 
-          for (const { name, handle } of jpgEntries) {
+          for (const { name, handle, kind } of jpgEntries) {
             const file = await handle.getFile()
             const beforeKB = (file.size / 1000).toFixed(1)
+
+            if (kind === "png-logo") {
+              // PNGはmozjpeg(JPEG出力)で再圧縮すると透過が壊れるため自動圧縮はしない。
+              // 上限内ならそのままコピー、超過時は手動対応を促す
+              // (ユーザー指摘: 2026-09-24、PNGロゴが圧縮フォルダに含まれない不具合の対応)。
+              const outHandle = await compressDir.getFileHandle(name, { create: true })
+              if (file.size <= WP_LOGO_MAX_BYTES) {
+                const buf = await file.arrayBuffer()
+                const writable = await outHandle.createWritable()
+                await writable.write(buf)
+                await writable.close()
+                log(`  <span class="log-ok">✅ ${name} (WPロゴ) ${beforeKB}K → ${beforeKB}K (コピー)</span>`)
+                totalSkip++
+              } else {
+                log(
+                  `  <span class="log-ng">❌ ${name} (WPロゴ) ${beforeKB}K — 上限90KB超過。PNGは自動圧縮非対応のため手動で圧縮してください</span>`,
+                )
+                totalNg++
+              }
+              processed++
+              updateProgress(processed, totalFiles)
+              continue
+            }
 
             // 画像を1回だけデコードし、枠検出・サイズ判定・圧縮すべてで使い回す
             let canvas
