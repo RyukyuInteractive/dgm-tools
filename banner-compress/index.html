@@ -287,7 +287,7 @@
       <div class="option-row">
         <input type="checkbox" id="autoResizeChk" checked />
         <label for="autoResizeChk"
-          >quality=1でも容量を超える場合、寸法を保ったまま画質を落として自動で収める</label
+          >画質を最低(quality=1)まで下げても容量オーバーする画像は、寸法はそのままディテールを間引いて容量内に収める（オフの場合は超過のまま報告）</label
         >
       </div>
 
@@ -1004,15 +1004,16 @@
         )
 
         summary.style.display = "block"
+        const compressedNote = `「圧縮」フォルダを生成しました`
         if (totalNg > 0) {
           summary.className = "summary ng"
-          summary.textContent = `⚠️ ${totalOk + totalSkip}枚完了 / ${totalNg}枚は上限超過（要確認）`
+          summary.textContent = `⚠️ ${totalOk + totalSkip}枚完了 / ${totalNg}枚は上限超過（要確認） ${compressedNote}`
         } else if (totalWarn > 0) {
           summary.className = "summary warn"
-          summary.textContent = `✅ ${totalOk + totalSkip}枚完了 — ⚠️ 外枠ライン要確認（${totalWarn}件）`
+          summary.textContent = `✅ ${totalOk + totalSkip}枚完了 — ⚠️ 外枠ライン要確認（${totalWarn}件） ${compressedNote}`
         } else {
           summary.className = "summary ok"
-          summary.textContent = `✅ ${totalOk + totalSkip}枚すべて完了！`
+          summary.textContent = `✅ ${totalOk + totalSkip}枚すべて完了！ ${compressedNote}`
         }
 
         startBtn.disabled = false
