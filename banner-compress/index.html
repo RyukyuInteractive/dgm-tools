@@ -742,6 +742,13 @@
         const ctx = canvas.getContext("2d")
         const encode = await getMozjpeg()
 
+        // @jsquash/jpeg(mozjpegのWASM版)はdefaultOptionsでprogressive:true/baseline:false
+        // になっており、qualityだけ渡すとプログレッシブJPEGを出力する。Amazon側の
+        // アップロードツール(Pastry)がプログレッシブJPEGを読めず「Failed to convert
+        // progressive JPEG」で弾く不具合があったため(ユーザー報告: 2026-10-16)、
+        // 明示的にベースラインJPEGを指定する。
+        const jpegOptions = { baseline: true, progressive: false }
+
         if (encode) {
           // ── mozjpeg パス（高画質）── 標準的な整数二分探索
           const imageData = ctx.getImageData(0, 0, canvas.width, canvas.height)
@@ -751,7 +758,7 @@
             bestBuf = null
           while (lo <= hi) {
             const mid = Math.floor((lo + hi) / 2)
-            const buf = await encode(imageData, { quality: mid })
+            const buf = await encode(imageData, { quality: mid, ...jpegOptions })
             if (buf.byteLength <= maxBytes) {
               bestQ = mid
               bestBuf = buf
@@ -759,7 +766,7 @@
             } else hi = mid - 1
           }
           if (!bestBuf) {
-            bestBuf = await encode(imageData, { quality: 1 })
+            bestBuf = await encode(imageData, { quality: 1, ...jpegOptions })
             bestQ = 1
           }
           return { output: bestBuf, size: bestBuf.byteLength, quality: bestQ }
